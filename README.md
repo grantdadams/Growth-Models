@@ -3,4 +3,4 @@ Some code examples of von Bertallanfy growth models in TMB, JAGS, and Stan that 
 
 
 Citation:
-Adams, G.D., Leaf, R.T., Ballenger, J.C., Arnott, S.A., Mcdonough, C.J., 2018. Spatial variability in the growth of Sheepshead (Archosargus probatocephalus) in the Southeast US : Implications for assessment and management. Fish. Res. 206, 35–43. doi:10.1016/j.fishres.2018.04.023
+Adams, G.D., Leaf, R.T., Ballenger, J.C., Arnott, S.A., Mcdonough, C.J., 2018. Spatial variability in the growth of Sheepshead (Archosargus probatocephalus) in the Southeast US : Implications for assessment and management. Fish. Res. 206, 35–43. [doi:10.1016/j.fishres.2018.04.023](doi:10.1016/j.fishres.2018.04.023)
