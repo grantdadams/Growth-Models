@@ -73,9 +73,9 @@ tau.y sigma ~ dunif(0,100)
  
 # Level-2 parameters
 for(j in 1:G){
-Linf[j] k[j] t0[j] B.raw.hat[j,1] ~ dnorm(mu.Linf.raw, tau.Linf)
-B.raw.hat[j,2] ~ dnorm(mu.k.raw, tau.k)
-B.raw.hat[j,3] ~ dnorm(mu.t0.raw, tau.t0)
+Linf[j] ~ dnorm(mu.Linf.raw, tau.Linf)
+k[j] ~ dnorm(mu.k.raw, tau.k)
+t0[j] ~ dnorm(mu.t0.raw, tau.t0)
 }
  
 #priors for level-2 parameters
