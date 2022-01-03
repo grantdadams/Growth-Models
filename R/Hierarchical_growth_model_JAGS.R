@@ -73,23 +73,23 @@ tau.y sigma ~ dunif(0,100)
  
 # Level-2 parameters
 for(j in 1:G){
-Linf[j] ~ dnorm(mu.Linf.raw, tau.Linf)
-k[j] ~ dnorm(mu.k.raw, tau.k)
-t0[j] ~ dnorm(mu.t0.raw, tau.t0)
+Linf[j] ~ dnorm(mu.Linf, tau.Linf)
+k[j] ~ dnorm(mu.k, tau.k)
+t0[j] ~ dnorm(mu.t0, tau.t0)
 }
  
 #priors for level-2 parameters
-mu.Linf.raw ~ dnorm(0,0.0001)
-mu.k.raw ~ dnorm(0,0.0001)
-mu.t0.raw ~ dnorm(0,0.0001)
+mu.Linf ~ dnorm(0,0.0001)
+mu.k ~ dnorm(0,0.0001)
+mu.t0 ~ dnorm(0,0.0001)
  
 # Get hyperparameters on untransformed scale
-mu.Linf mu.k mu.t0
+# mu.Linf mu.k mu.t0
  
 # Precision
 tau.Linf = pow(sig.Linf,-2)
-tau.k = pow(sig.Linf,-2)
-tau.t0 = pow(sig.Linf,-2)
+tau.k = pow(sig.k,-2)
+tau.t0 = pow(sig.t0,-2)
  
 # SD of parameters
 sig.Linf ~ dunif(0,10)
@@ -101,7 +101,7 @@ sig.t0 ~ dunif(0,10)
 writeLines(jags.mod, "jags_model.txt")
 
 ##### PARAMETERS TO MONITOR #####
-params = c("Linf", "k", "t0", "mu.Linf", "mu.k", "mu.t0", "mu.Linf.raw", "mu.k.raw", "mu.t0.raw", "sig.Linf","sig.k","sig.t0","sigma" )
+params = c("Linf", "k", "t0", "mu.Linf", "mu.k", "mu.t0", "mu.Linf", "mu.k", "mu.t0", "sig.Linf","sig.k","sig.t0","sigma" )
 
 ##### MCMC DIMENSIONS #####
 ni = 500
