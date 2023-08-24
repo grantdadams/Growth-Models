@@ -1,4 +1,4 @@
-# This code simulates length-at-age data for individuals from a population where there are multiple sub-groups and there are sex and location (river) specific differences in growth. Multiple length-at-age samples are "simulated/sampled" from each individual, representing capture-recapture data.
+# This code simulates length-at-age data for individuals from a population where there are multiple sub-groups and there are sex and location (two rivers) specific differences in growth. Multiple length-at-age samples are "simulated/sampled" from each individual, representing capture-recapture data.
 
 # The data are then fit to a hierarchical von bertalanfy growth curve with the following structure:
 
@@ -28,11 +28,11 @@ group <- sample(1:6, Nind, replace = TRUE) # Group for individual X
 nsamples <- sample(1:10, Nind, replace = TRUE) # Randomly select number of samples per individual X
 sex <- sample(0:1, Nind, replace = TRUE) # Randomly select sex of individual X
 river <- sample(0:1, Nind, replace = TRUE) # Randomly select river of individual X
-N <- sum(nsamples) # Number of samples
-sample.id <- rep(1:Nind, times = nsamples) # ID of individual for sample Y
-sample.group <- rep(group, times = nsamples) # group for sample Y
-sample.sex <- rep(sex, times = nsamples) # sex for sample Y
-sample.river <- rep(river, times = nsamples) # river for sample Y
+N <- sum(nsamples) # Total number of samples
+sample.id <- rep(1:Nind, times = nsamples) # ID of individual X from sample Y
+sample.group <- rep(group, times = nsamples) # group of individual X from sample Y
+sample.sex <- rep(sex, times = nsamples) # sex of individual X from sample Y
+sample.river <- rep(river, times = nsamples) # river of individual X from sample Y
 
 
 ## Mu VBGM hyperparameters 
