@@ -1,36 +1,71 @@
 model{
+
+## Data likelihood ----
 for(i in 1:N){
-length[i] ~ dnorm(y.hat[i], tau.y)
-y.hat[i] = Linf[group[i]] * (1-exp(-k[group[i]] * (age[i] - t0[group[i]] )))
+  length[i] ~ dnorm(y.hat[i], tau.y) # May want this to be lognormal
+  y.hat[i] = Linf.i[sample.id[i]] * (1-exp(-k.i[sample.id[i]] * (age[i] - t0.i[sample.id[i]])))
 }
- 
-# SD
+
+# - Observation error
 tau.y = pow(sigma, -2)
 sigma ~ dunif(0,100)
- 
-# Level-2 parameters
-for(j in 1:G){
-Linf[j] ~ dnorm(mu.Linf, tau.Linf)
-k[j] ~ dnorm(mu.k, tau.k)
-t0[j] ~ dnorm(mu.t0, tau.t0)
+
+
+## Group level random effects ----
+for (j in 1:G){ # - Loop through groups
+  group.re.pars[j,1:3] ~ dmnorm(mu.re, group.inv.cov.mat)  # The `0` may need to be a vector of 3 zeros?
+
+  log.Linf.group.re[j] = group.re.pars[j,1]
+  log.k.group.re[j] = group.re.pars[j,2] 
+  t0.group.re[j] = group.re.pars[j,3]
+  
+  # - Get group level params on natural scale for reporting
+  Linf.group[j] = exp(log.mu.Linf + log.Linf.group.re[j])
+  k.group[j] = exp(log.mu.k + log.k.group.re[j])
+  t0.group[j] = mu.t0 + t0.group.re[j]
 }
- 
-# Priors for level-2 parameters
-log.mu.Linf ~ dnorm(0,0.0001)
-log.mu.k ~ dnorm(0,0.0001)
-mu.t0 ~ dnorm(0,0.0001)
- 
-# Get hyperparameters on untransformed scale
+
+# - Group level covariance matrix
+group.inv.cov.mat ~ dwish( z.group.mat, 4 ) # Add `z.group.mat = diag(x=1,nrow=3)` to the data
+group.cov.mat = inverse( group.inv.cov.mat ) # you can get out the variance and correlation coeficients using `cov2cor` in R or add code here
+
+
+## Individual level random effects ----
+for (k in 1:Nind){ # - Loop through individuals
+  ind.re.pars[k,1:3] ~ dmnorm(mu.re, ind.inv.cov.mat) # The `0` may need to be a vector of 3 zeros?
+
+  log.Linf.ind.re[k] = ind.re.pars[k,1]
+  log.k.ind.re[k] = ind.re.pars[k,2] 
+  t0.ind.re[k] = ind.re.pars[k,3]
+  
+  # - Get individual level params on natural scale 
+  # NOTE: group is now of length Nind and will have to be adjusted in the data
+  Linf.i[k] = exp(log.mu.Linf + log.Linf.group.re[group[k]] + log.Linf.ind.re[k] + log.linf.beta.sex * sex[k] + log.linf.beta.river * river[k]) # Exponent here to keep Linf positive
+  k.i[k] = exp(log.mu.k + log.k.group.re[group[k]] + log.k.ind.re[k] + log.k.beta.sex * sex[k] + log.k.beta.river * river[k]) # Exponent here to keep K positive
+  t0.i[k] = mu.t0 + t0.group.re[group[k]] + t0.ind.re[k] + t0.beta.sex * sex[k] + t0.beta.river * river[k]
+}
+
+# - Individual level covariance matrix
+ind.inv.cov.mat ~ dwish( z.ind.mat, 4) # Add `z.ind.mat = diag(x=1,nrow=3)` to the data
+ind.cov.mat = inverse( ind.inv.cov.mat ) # you can get out the variance and correlation coeficients using =`cov2cor` in R or add code here
+
+# Sex and river effet priors
+log.linf.beta.river ~ dnorm(0, 0.01)
+log.k.beta.river ~ dnorm(0, 0.01)
+t0.beta.river ~ dnorm(0, 0.01)
+
+log.linf.beta.sex ~ dnorm(0, 0.01)
+log.k.beta.sex ~ dnorm(0, 0.01)
+t0.beta.sex ~ dnorm(0, 0.01)
+
+## Population level parameters ----
+# - These could probably be more informative given previous studies
+log.mu.Linf ~ dmnorm(0,0.0001)
+log.mu.k ~ dunif(0,1)
+mu.t0 ~ dmnorm(0,0.0001)
+
+# - Put on natural scale for reporting
 mu.Linf = exp(log.mu.Linf)
 mu.k = exp(log.mu.k)
  
-# Precision
-tau.Linf = pow(sig.Linf,-2)
-tau.k = pow(sig.k,-2)
-tau.t0 = pow(sig.t0,-2)
- 
-# SD of parameters
-sig.Linf ~ dunif(0,10)
-sig.k ~ dunif(0,10)
-sig.t0 ~ dunif(0,10)
 }

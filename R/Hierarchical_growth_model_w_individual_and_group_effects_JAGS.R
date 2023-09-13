@@ -18,6 +18,7 @@
 ####################################################################################
 # Set Seed
 library(MASS)
+library(runjags)
 library(dplyr)
 set.seed(1234)
 
@@ -214,16 +215,16 @@ params = c("mu.Linf", "mu.k", "mu.t0", "Linf.group", "k.group", "t0.group","Linf
            "log.linf.beta.river", "log.k.beta.river", "t0.beta.river", "log.linf.beta.sex", "log.k.beta.sex", "t0.beta.sex" )
 
 
-##### Assign data to list ##### 
+#### A#ssign data to list ##### 
 dat = list(age = age, length = length, sex = sex, river = river, sample.id = sample.id, N = N, G = G, Nind = Nind, group = group, z.group.mat = diag(x=1,nrow=3), z.ind.mat = diag(x=1,nrow=3), mu.re = rep(0, 3))
 
 
 ##### MCMC DIMENSIONS #####
 ni = 50000
-nb = 10000
+nb = 100000
 na = 100000
 nt = 1000
-nc = 5
+nc = 4
 n.iter = ni + nb
 
 ##### RUN THE MODEL IN JAGS #####
@@ -235,7 +236,7 @@ runJagsOut <- run.jags( model="jags_model.txt" ,
                         burnin=nb ,
                         sample=ni ,
                         thin=nt ,
-                        summarise=FALSE ,
+                        method = "parallel",
                         plots=FALSE )
 
 plot(runJagsOut) # Converged?
