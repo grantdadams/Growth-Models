@@ -1,5 +1,5 @@
 # Growth-Models
-Some code examples of simulating and fitting von Bertallanfy growth models in TMB, JAGS, and Stan that I wrote while studying spatially-varying growth of Sheepshead. Stan models used in the final publication are included, but see [here](https://github.com/grantdadams/Spatial-Growth-Models) for full analysis. The following models are included in the R folder:
+Some code examples of simulating length-at-age data and fitting von Bertallanfy growth models in TMB, JAGS, and Stan that I wrote while studying spatially-varying growth of Sheepshead. Stan models used in the final publication are included, but see [here](https://github.com/grantdadams/Spatial-Growth-Models) for full analysis. The following models are included in the R folder:
 
 1. Maximum likelihood three parameter von Bertallanfy model fit in TMB [link](https://github.com/grantdadams/Growth-Models/blob/master/R/von_Bertalanffy_growth_TMB.R)
 2. Maximum likelihood three parameter von Bertallanfy model fit in TMB where the likelihood function is a truncated normal distribution (upper and lower truncation points [link](https://github.com/grantdadams/Growth-Models/blob/master/R/Truncated_von_Bertalanffy_growth_TMB.R)
