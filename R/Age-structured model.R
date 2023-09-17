@@ -82,8 +82,14 @@ for(y in 2:nyrs){ # Year one starts at equilibrium
 
 
 ## Add observation error ----
+# - Simulate observed catch and survey data from lognormal distribution
 srv_obs <- rlnorm(n = nyrs, meanlog = log(srv_biom), sd = 0.2)
 catch_obs <- rlnorm(n = nyrs, meanlog = log(catch), sd = 0.1)
-srv_comp_obs <- apply(srv_comp, 1, function(x) rmultinom(n = 1, size = 200, prob = x)) # Size is the multinomial sample size (See Hamel and Stewart 2014 for calculation)
-fsh_comp_obs <- apply(fsh_comp, 1, function(x) rmultinom(n = 1, size = 100, prob = x))
 
+# - Simulate age composition data from multinomial with assumed sample size of 200 for survey and 100 for fishery
+# -- Size is the multinomial sample size (See Hamel and Stewart 2014 for calculation with observed data)
+srv_comp_obs <- apply(srv_comp, 1, function(x) rmultinom(n = 1, size = 200, prob = x)) 
+srv_comp_obs <- apply(srv_comp_obs, 1, function(x) x/sum(x)) # Normalize
+
+fsh_comp_obs <- apply(fsh_comp, 1, function(x) rmultinom(n = 1, size = 100, prob = x))
+fsh_comp_obs <- apply(fsh_comp_obs, 1, function(x) x/sum(x))
