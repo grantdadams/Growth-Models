@@ -94,8 +94,8 @@ for(i in 1:G){
 # - Simulate individual level parameters
 for(i in 1:Nind){
   ind.re.mat[i,] <- mvrnorm(1, rep(0,3), cov.ind.mat)
-  ind.param.mat[i,1] <- mu.parms[1] * exp(group.re.mat[group[i],1] + ind.re.mat[group[i],1] + loglinf.beta.sex * sex[i] + loglinf.beta.river * river[i]) # Log to natural scale Linf
-  ind.param.mat[i,2] <- mu.parms[2] * exp(group.re.mat[group[i],2] + ind.re.mat[group[i],2] + logk.beta.sex * sex[i] + logk.beta.river * river[i]) # Log to natural scale K
+  ind.param.mat[i,1] <- mu.parms[1] * exp(group.re.mat[group[i],1] + ind.re.mat[i,1] + loglinf.beta.sex * sex[i] + loglinf.beta.river * river[i]) # Log to natural scale Linf
+  ind.param.mat[i,2] <- mu.parms[2] * exp(group.re.mat[group[i],2] + ind.re.mat[i,2] + logk.beta.sex * sex[i] + logk.beta.river * river[i]) # Log to natural scale K
   ind.param.mat[i,3] <- mu.parms[3] + group.re.mat[group[i],3] + ind.re.mat[i,3] + t0.beta.sex * sex[i] + t0.beta.river * river[i]
 }
 
