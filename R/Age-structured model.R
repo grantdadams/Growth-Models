@@ -67,7 +67,7 @@ for(y in 2:nyrs){ # Year one starts at equilibrium
   
   # - Calculate fishery and survey age composition
   srv_comp[,y] <- n_at_age[,y] * srv_sel # Assuming happens at month-0
-  fsh_comp[,y] <- n_at_age[,y] * (fsh_sel * Fmort[y])/ (M + fsh_sel * fsh_mort[y]) * (1-exp(-M - fsh_sel * fsh_mort[y])) # Baranov catch equation
+  fsh_comp[,y] <- n_at_age[,y] * (fsh_sel * fsh_mort[y])/ (M + fsh_sel * fsh_mort[y]) * (1-exp(-M - fsh_sel * fsh_mort[y])) # Baranov catch equation
   # - Baranov catch equation is the integral of dN/dT -(F + M) times the ratio of F to (M+F)
   # - The 1 - exp(-M+F) is calculating the number of fish lost due to F + M: (N-N*exp(-M+F))
   
@@ -93,3 +93,21 @@ srv_comp_obs <- apply(srv_comp_obs, 1, function(x) x/sum(x)) # Normalize
 
 fsh_comp_obs <- apply(fsh_comp, 1, function(x) rmultinom(n = 1, size = 100, prob = x))
 fsh_comp_obs <- apply(fsh_comp_obs, 1, function(x) x/sum(x))
+
+
+## Combine data in list ----
+dat_list <- list(
+  # Model structure
+  nages = nages,
+  nyrs = nyrs,
+  wt = wt,
+  
+  # Survey data
+  nsrvs = 1, # One survey
+  srv_obs = srv_obs,
+  srv_comp_obs = srv_comp_obs,
+  
+  # Fishery data (catch has to be of length nyrs)
+  catch_obs = catch_obs,
+  catch_comp_obs = fsh_comp_obs
+)
