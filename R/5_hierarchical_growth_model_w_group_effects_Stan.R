@@ -1,16 +1,15 @@
-# This code simulates length-at-age data for individuals from a population where there are multiple sub-groups and there are sex and location (two rivers) specific differences in growth. Multiple length-at-age samples are "simulated/sampled" from each individual, representing capture-recapture data.
+# This code simulates length-at-age data for individuals from a population where there are multiple sub-groups
+# based on a von Bertalanfy growth curve
 
 # The data are then fit to a hierarchical von bertalanfy growth curve with the following structure:
 
 # Length.obs.i = Linf.i * (1-exp(-K.i * (age.obs.i - t0.i))) + eps.i
-# Linf_i = exp(mu.linf + linf.group + linf.i + beta.linf.river * river.i + beta.linf.sex * sex.i)
-# K_i  = exp(mu.k + k.group + k.i + beta.k.river * river.i + beta.k.sex * sex.i)
-# t0_i = mu.t0 + t0.group + t0.i + beta.t0.river * river.i + beta.t0.sex * sex.i
+# Linf_i = exp(mu.linf + linf.group)
+# K_i  = exp(mu.k + k.group)
+# t0_i = mu.t0 + t0.group
 
-# Where the "betas" are river and sex effects depending on the river of origin and sex of individual "i" 
-# The group and and individual i level parameters are assumed to be MVN with mean 0 and conjugate prior variance
+# The group level parameters are assumed to be MVN with mean 0
 # Eps.i is the normally distributed error term
-# NOTE: given the non-linearity and high dimension of the model, estimation is probably better in Stan
 
 
 ####################################################################################
@@ -19,6 +18,7 @@
 # Set Seed
 library(MASS)
 library(runjags)
+library(ggplot2)
 library(dplyr)
 set.seed(1234)
 
@@ -38,172 +38,141 @@ sigma = 10 # Observation error
 
 
 ## Group level random effects
-sigma.group = c(0.01, 0.05, 0.2)
+sigma.group = c(0.1, 0.05, 0.2)
 rho = 0.3 # Correlation between group level parameters
 cor.group.mat = matrix(rho, 3, 3)
 diag(cor.group.mat) <- 1
 cov.group.mat <- diag(sigma.group) %*% cor.group.mat %*% diag(sigma.group) # Get covariance
 
 
-## Simulate parameters for groupsv----
+## Simulate parameters for groups----
 # - Empty matrix and vectors to fill with parameters and data, respectively
 group.param.mat <- group.re.mat <- matrix(NA,G,3,byrow = T)
 
 # - Random effects
 colnames(group.re.mat) <- c("log.Linf.group.re", "log.k.group.re", "t0.group.re")
 
-# - On VBGF scalge
+# - On VBGF scale
 colnames(group.param.mat) <- c("Linf.group", "k.group", "t0.group")
 
 
 # - Simulate group level parameters
 for(i in 1:G){
-  group.re.mat[i,] <- mvrnorm(1, rep(0,3), cov.group.mat)
+  # - Sim from mvnorm
+  group.re.mat[i,] <- mvrnorm(1, rep(0,3), cov.group.mat) 
+  
+  # - Convert to parameter space
   group.param.mat[i,1:2] <- mu.parms[1:2] * exp(group.re.mat[i,1:2]) # Log to natural scale
   group.param.mat[i,3] <- mu.parms[3] + group.re.mat[i,3]
 }
 
 
-## Simulate length-at-age data
+## Simulate length-at-age data ----
 ages = seq(from=1,to=20, by = .05)
 age = c()
 length = c()
 for(j in 1:N) {
   age[j] = sample(ages, 1) # Sample random age from age range
-  length[j] = (ind.param.mat[sample.id[j],1] * (1 - exp(-ind.param.mat[sample.id[j],2]*(age[j]-ind.param.mat[sample.id[j],3])))) + rnorm(1,0,sigma)
+  length[j] = (group.param.mat[group[j],1] * (1 - exp(-group.param.mat[group[j],2]*(age[j]-group.param.mat[group[j],3])))) + rnorm(1,0,sigma) # Add normally distributed random error
+  #FIXME: may want lognormal error
 }
 
 
 # Assign data to data frame
-dat = data.frame(age = age, length = length, sample.group = sample.group, sample.id = sample.id, sample.sex = sample.sex, sample.river = sample.river)
-dat <- dat[which(dat$length > 0),]
-dat <- dat %>% arrange(sample.group, sample.id, age)
+dat = data.frame(age = age, length = length, group = as.factor(group))
+dat <- dat[which(dat$length > 0),] # Make sure all lengths are positive
+dat <- dat %>% arrange(group, age, length)
 
 # Plot the data
-for (i in 1:length(unique(dat$sample.group))){
-  sub = dat[which(dat$sample.group==i),]
-  if ( i == 1){
-    plot(sub$age, sub$length, pch = sub$sample.sex+1 ,col = i, xlab = "Age", ylab = "Length", ylim = c(0, max(length, na.rm = TRUE)), xlim = range(ages))
-  } else {
-    points(sub$age, sub$length , col = i, pch = sub$sample.sex+1)
-  }
-}
-
+cols <- c("#86BBD8","#2F4858", "#F6AE2D", "#F26419", "#E86A92", "#57A773") # Colors for the VBGF lines (Females/Males)
+ggplot(dat, aes(x = age, y = length, colour = group)) +
+  geom_point(size = 2) + 
+  scale_colour_manual(values=cols)
 
 
 #################################################################################### 
-# JAGS VBGM ######################################################################## 
+# Stan VBGM ######################################################################## 
 ####################################################################################
-require(runjags)
-require(coda)
-
-##### SPECIFY JAGS MODEL CODE #####
-jags.mod =
-  "model{
-
-## Data likelihood ----
-for(i in 1:N){
-  length[i] ~ dnorm(y.hat[i], tau.y) # May want this to be lognormal
-  y.hat[i] = Linf.i[sample.id[i]] * (1-exp(-k.i[sample.id[i]] * (age[i] - t0.i[sample.id[i]])))
-}
-
-# - Observation error
-tau.y = pow(sigma, -2)
-sigma ~ dunif(0,100)
+## Stan setup ----
+library(rstan)
+rstan_options(threads_per_chain = 1)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores()-1)
 
 
-## Group level random effects ----
-for (j in 1:G){ # - Loop through groups
-  group.re.pars[j,1:3] ~ dmnorm(mu.re, group.inv.cov.mat)  # The `0` may need to be a vector of 3 zeros?
+# - Assign data to list
+dat_list = list(
+  Nobs = length(length),     # Number of obs
+  G = G,                     # Number of groups
+  Nages = ceiling(max(age)), # Max age (rounded) for predicting mean length-at-age by group
+  length = length,           # Observed length
+  age = age,                 # Age
+  group = group,             # Group
+  Zero = rep(0, 3)           # Vector of zero for mean of multivariate normal prior
+)
 
-  log.Linf.group.re[j] = group.re.pars[j,1]
-  log.k.group.re[j] = group.re.pars[j,2] 
-  t0.group.re[j] = group.re.pars[j,3]
+
+## Fit model ----
+# - VBGF with group level random effects
+fit_stan <- stan(
+  file = "R/5_hierarchical_growth_model_w_group_effects.stan",  # Stan program
+  data = dat_list,             # named list of data
+  chains = 4,             # number of Markov chains
+  warmup = 2000,          # number of warmup iterations per chain
+  iter = 4000,            # total number of iterations per chain
+  cores = 4,              # number of cores (could use one per chain)
+  control = list(adapt_delta=0.99, stepsize=0.001, max_treedepth=18)
+)
+# - Some divergent transitions, may want to adjust
+
+
+## Model diagnostics ----
+# - Print and plot MCMC
+# -- Look at chains
+print(fit_stan, pars=c("mu_linf", "mu_k", "mu_t0", "linf_group", "k_group", "t0_group"), probs=c(.1,.5,.9)) # None of the betas are sig
+traceplot(fit_stan, pars = c("mu_linf", "mu_k", "mu_t0", "sigma"), inc_warmup = FALSE, nrow = 2)
+traceplot(fit_stan, pars = c("Lcorr_group", "sigma_group"), inc_warmup = FALSE, nrow = 2)
+
+# -- Look at pairs
+pairs(fit_stan, pars = c("mu_linf", "mu_k", "mu_t0"), las = 1)
+pairs(fit_stan, pars = c("Lcorr_group", "sigma_group"), las = 1)
+
+# - Sampler issues for all chains combined
+sampler_params <- get_sampler_params(fit_stan, inc_warmup = TRUE)
+summary(do.call(rbind, sampler_params), digits = 2)
+
+
+## Plot model ----
+# - Plot fitted model
+plot(y = length , x = age, ylab = "Length", xlab = "Age", cex = 2, cex.lab = 1.25, 
+     col = cols[group], pch = 16)
+draws <- as.data.frame(fit_stan) # Get draws
+
+# - Plot median of global curve
+lines(1:max(age), apply(draws[,grepl("length_pred\\[1,",colnames(draws))], 2, median), col = 1, lty = 1, lwd = 4) # Global
+
+# - Plot median of group curve
+for(g in 1:G){
+  # - Predicted
+  lines(x = 1:max(ceiling(age)), 
+        y = apply(draws[,grepl(paste0("length_pred\\[",g+1),colnames(draws))], 2, median), 
+        col = cols[g], lty = 1, lwd = 2)
   
-  # - Get group level params on natural scale for reporting
-  Linf.group[j] = exp(log.mu.Linf + log.Linf.group.re[j])
-  k.group[j] = exp(log.mu.k + log.k.group.re[j])
-  t0.group[j] = mu.t0 + t0.group.re[j]
+  # - True
+  lines(x = 1:max(ceiling(age)), 
+        y = (group.param.mat[g,1] * (1 - exp(-group.param.mat[g,2]*(1:max(ceiling(age))-group.param.mat[g,3])))), 
+        col = cols[g], lty = 2, lwd = 2)
 }
 
-# - Group level covariance matrix
-group.inv.cov.mat ~ dwish( z.group.mat, 4 ) # Add `z.group.mat = diag(x=1,nrow=3)` to the data
-group.cov.mat = inverse( group.inv.cov.mat ) # you can get out the variance and correlation coeficients using `cov2cor` in R or add code here
+legend("bottomright", c("Global", paste0("Group ", 1:6)), col = c(1,cols), lty = 1, bty = "n", lwd = 2)
 
 
-## Individual level random effects ----
-for (k in 1:Nind){ # - Loop through individuals
-  ind.re.pars[k,1:3] ~ dmnorm(mu.re, ind.inv.cov.mat) # The `0` may need to be a vector of 3 zeros?
+## Test group Parameters ----
+# - Do the posteriers of the difference cross 0?
+# - Only testing between group 1 and 2 here
+par(mfrow = c(1,3))
+hist(draws$`linf_group[1]`-draws$`linf_group[2]`, xlab = "Linf diff", main = NA)
+hist(draws$`k_group[1]`-draws$`k_group[2]`, xlab = "K diff", main = "Group 1 and 2 difference")
+hist(draws$`t0_group[1]`-draws$`t0_group[2]`, xlab = "t0 diff", main = NA)
+par(mfrow = c(1,1))
 
-  log.Linf.ind.re[k] = ind.re.pars[k,1]
-  log.k.ind.re[k] = ind.re.pars[k,2] 
-  t0.ind.re[k] = ind.re.pars[k,3]
-  
-  # - Get individual level params on natural scale 
-  # NOTE: group is now of length Nind and will have to be adjusted in the data
-  Linf.i[k] = exp(log.mu.Linf + log.Linf.group.re[group[k]] + log.Linf.ind.re[k] + log.linf.beta.sex * sex[k] + log.linf.beta.river * river[k]) # Exponent here to keep Linf positive
-  k.i[k] = exp(log.mu.k + log.k.group.re[group[k]] + log.k.ind.re[k] + log.k.beta.sex * sex[k] + log.k.beta.river * river[k]) # Exponent here to keep K positive
-  t0.i[k] = mu.t0 + t0.group.re[group[k]] + t0.ind.re[k] + t0.beta.sex * sex[k] + t0.beta.river * river[k]
-}
-
-# - Individual level covariance matrix
-ind.inv.cov.mat ~ dwish( z.ind.mat, 4) # Add `z.ind.mat = diag(x=1,nrow=3)` to the data
-ind.cov.mat = inverse( ind.inv.cov.mat ) # you can get out the variance and correlation coeficients using =`cov2cor` in R or add code here
-
-# Sex and river effet priors
-log.linf.beta.river ~ dnorm(0, 0.01)
-log.k.beta.river ~ dnorm(0, 0.01)
-t0.beta.river ~ dnorm(0, 0.01)
-
-log.linf.beta.sex ~ dnorm(0, 0.01)
-log.k.beta.sex ~ dnorm(0, 0.01)
-t0.beta.sex ~ dnorm(0, 0.01)
-
-## Population level parameters ----
-# - These could probably be more informative given previous studies
-log.mu.Linf ~ dmnorm(0,0.0001)
-log.mu.k ~ dunif(0,1)
-mu.t0 ~ dmnorm(0,0.0001)
-
-# - Put on natural scale for reporting
-mu.Linf = exp(log.mu.Linf)
-mu.k = exp(log.mu.k)
- 
-}"
-
-# write model to a text file
-writeLines(jags.mod, "jags_model.txt")
-
-##### PARAMETERS TO MONITOR #####
-params = c("mu.Linf", "mu.k", "mu.t0", "Linf.group", "k.group", "t0.group","Linf.i", "k.i", "t0.i", 
-           "ind.cov.mat","group.cov.mat","sigma", 
-           "log.linf.beta.river", "log.k.beta.river", "t0.beta.river", "log.linf.beta.sex", "log.k.beta.sex", "t0.beta.sex" )
-
-
-#### A#ssign data to list ##### 
-dat = list(age = age, length = length, sex = sex, river = river, sample.id = sample.id, N = N, G = G, Nind = Nind, group = group, z.group.mat = diag(x=1,nrow=3), z.ind.mat = diag(x=1,nrow=3), mu.re = rep(0, 3))
-
-
-##### MCMC DIMENSIONS #####
-ni = 50000
-nb = 100000
-na = 100000
-nt = 1000
-nc = 4
-n.iter = ni + nb
-
-##### RUN THE MODEL IN JAGS #####
-runJagsOut <- run.jags( model="jags_model.txt" ,
-                        monitor=params ,
-                        data=dat ,
-                        n.chains=nc ,
-                        adapt=na ,
-                        burnin=nb ,
-                        sample=ni ,
-                        thin=nt ,
-                        method = "parallel",
-                        plots=FALSE )
-
-plot(runJagsOut) # Converged?
-
-summ <- summary(runJagsOut)
