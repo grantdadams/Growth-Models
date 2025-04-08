@@ -29,7 +29,6 @@ points(Obs_age_i, Obs_length_i , col = 2, pch = 16)
 
 #..........................................................................
 # Write model
-# Remember the language is C++ so comments are indicated by "//" and the end of an expression needs to be explicitly stated by typing ";"
 vbgf_trunc = function(parList){
   
   # Data
