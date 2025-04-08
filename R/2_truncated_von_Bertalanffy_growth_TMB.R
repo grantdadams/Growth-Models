@@ -1,11 +1,7 @@
-# This code creates a 3-parameter von Bertalanffy growth function assuming a left and right truncated normal distribution of log length in template model builder.
-
-# NOTE: You need RTools to make TMB function!!!!
-# Follow the online instructions here:
-# https://github.com/kaskr/adcomp
+# This code creates a 3-parameter von Bertalanffy growth function assuming a left and right truncated normal distribution of length in template model builder.
+library(RTMB)
 
 ###### Simulate data
-library(RTMB)
 N_obs = 1000 # Number of observations
 Min_age = 0 # Minimum age in the population
 Max_age = 10 # Maximum age in the population
